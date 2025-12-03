@@ -164,6 +164,7 @@ class CAM:
         else:
             ret, mask, pred = self.grad_cam(input, t_index)
         # print(img.shape)
+        mask = cv2.resize(mask, (640, 640))#调整预处理后的图像尺寸
         self.show_cam_on_image(raw_img, mask)
         return ret, pred
         
@@ -185,7 +186,7 @@ class CAM:
 
     def show_cam_on_image(self, img, mask):
         heatmap = cv2.applyColorMap(np.uint8(255 * mask), cv2.COLORMAP_JET)[:, :, ::-1]
-        heatmap = np.float32(heatmap) / 255
+        heatmap = cv2.resize(heatmap, (640, 640))  # 显式调整为目标分辨率
         cam_pure = heatmap
         cam_pure = cam_pure / np.max(cam_pure)
         cam = np.float32(img) + heatmap

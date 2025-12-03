@@ -117,4 +117,3 @@ if __name__ == '__main__':
     
     for img, car_box in loader:
         print(img.size(), car_box.size())
-ß

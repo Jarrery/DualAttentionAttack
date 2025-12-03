@@ -1,0 +1,44 @@
+# --- 1. 标准 Python 忽略项 ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+anaconda3/
+
+# --- 2. PyCharm/IDE 配置文件 (必须忽略) ---
+.idea/
+.vscode/
+*.iml
+
+# --- 3. 操作系统生成的文件 ---
+.DS_Store
+Thumbs.db
+
+# --- 4. DualAttentionAttack 项目特定忽略项 (根据 README 定制) ---
+
+# 忽略数据集文件夹 (README 提到需要下载并解压到这里)
+# 通常数据集很大，不应上传到 GitHub
+src/data/*
+!src/data/README.md
+
+# 忽略训练日志和输出目录 (README 提到结果存在这里)
+src/logs/
+
+# 忽略训练生成的纹理文件和测试结果
+*.npy
+src/acc.txt
+loss.txt
+
+# 忽略大文件压缩包
+*.zip
+*.tar.gz
+
+# --- 5. 忽略模型权重文件 (除非你特意想传) ---
+# 如果 src/audi_et_te.obj 是基础文件可以保留，但生成的 .pth/.pt 应该忽略
+*.pth
+*.pt
+*.ckpt

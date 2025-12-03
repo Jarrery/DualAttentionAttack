@@ -261,7 +261,7 @@ if __name__ == '__main__':
     }
 
     make_log_dir(logs)
-    train_img_dir = os.path.join(args.datapath, 'new_dataset/images/train/')
+    train_img_dir = os.path.join(args.datapath, 'phy_attack/images/train/')
     # --- MODIFICATION 4: 同样移除这里的 Variable ---
     # 注意：这里的 texture_param 会覆盖全局的 texture_param，如果这是本意的话
     texture_param = torch.from_numpy(np.load(args.content)).cuda(device=0).requires_grad_(True)

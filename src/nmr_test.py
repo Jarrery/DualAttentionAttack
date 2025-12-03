@@ -143,37 +143,70 @@ class Render(torch.autograd.Function):
         super(Render, self).__init__()
         self.renderer = renderer
 
-    def forward(self, vertices, faces, textures=None):
-        # B x N x 3
-        # Flipping the y-axis here to make it align with the image coordinate system!
-        vs = vertices.cpu().numpy()
-        vs[:, :, 1] *= -1
-        fs = faces.cpu().numpy()
-        if textures is None:
-            self.mask_only = True
-            masks = self.renderer.forward_mask(vs, fs)
-            return convert_as(torch.Tensor(masks), vertices)
-        else:
-            self.mask_only = False
-            ts = textures.cpu().numpy()
-            imgs = self.renderer.forward_img(vs, fs, ts)
-            return convert_as(torch.Tensor(imgs), vertices)
+    # @staticmethod
+    # def forward(self, vertices, faces, textures=None):
+    #     # B x N x 3
+    #     # Flipping the y-axis here to make it align with the image coordinate system!
+    #     vs = vertices.cpu().numpy()
+    #     vs[:, :, 1] *= -1
+    #     fs = faces.cpu().numpy()
+    #     if textures is None:
+    #         self.mask_only = True
+    #         masks = self.renderer.forward_mask(vs, fs)
+    #         return convert_as(torch.Tensor(masks), vertices)
+    #     else:
+    #         self.mask_only = False
+    #         ts = textures.cpu().numpy()
+    #         imgs = self.renderer.forward_img(vs, fs, ts)
+    #         return convert_as(torch.Tensor(imgs), vertices)
+    #
+    # @staticmethod
+    # def backward(self, grad_out):
+    #     g_o = grad_out.cpu().numpy()
+    #     if self.mask_only:
+    #         grad_verts = self.renderer.backward_mask(g_o)
+    #         grad_verts = convert_as(torch.Tensor(grad_verts), grad_out)
+    #         grad_tex = None
+    #     else:
+    #         grad_verts, grad_tex = self.renderer.backward_img(g_o)
+    #         grad_verts = convert_as(torch.Tensor(grad_verts), grad_out)
+    #         grad_tex = convert_as(torch.Tensor(grad_tex), grad_out)
+    #
+    #     grad_verts[:, :, 1] *= -1
+    #     return grad_verts, None, grad_tex
 
-    def backward(self, grad_out):
-        g_o = grad_out.cpu().numpy()
-        if self.mask_only:
-            grad_verts = self.renderer.backward_mask(g_o)
-            grad_verts = convert_as(torch.Tensor(grad_verts), grad_out)
-            grad_tex = None
-        else:
-            grad_verts, grad_tex = self.renderer.backward_img(g_o)
-            grad_verts = convert_as(torch.Tensor(grad_verts), grad_out)
-            grad_tex = convert_as(torch.Tensor(grad_tex), grad_out)
+        @staticmethod
+        def forward(ctx, vertices, faces, textures=None):
+            # 保存renderer到上下文
+            ctx.renderer = Render.renderer
+            # 翻转y轴以对齐图像坐标系
+            vs = vertices.cpu().numpy()
+            vs[:, :, 1] *= -1
+            fs = faces.cpu().numpy()
+            if textures is None:
+                ctx.mask_only = True
+                masks = ctx.renderer.forward_mask(vs, fs)
+                result = convert_as(torch.Tensor(masks), vertices)
+            else:
+                ctx.mask_only = False
+                ts = textures.cpu().numpy()
+                imgs = ctx.renderer.forward_img(vs, fs, ts)
+                result = convert_as(torch.Tensor(imgs), vertices)
+            return result
 
-        grad_verts[:, :, 1] *= -1
-        return grad_verts, None, grad_tex
-
-
+        @staticmethod
+        def backward(ctx, grad_out):
+            g_o = grad_out.cpu().numpy()
+            if ctx.mask_only:
+                grad_verts = ctx.renderer.backward_mask(g_o)
+                grad_verts = convert_as(torch.Tensor(grad_verts), grad_out)
+                grad_tex = None
+            else:
+                grad_verts, grad_tex = ctx.renderer.backward_img(g_o)
+                grad_verts = convert_as(torch.Tensor(grad_verts), grad_out)
+                grad_tex = convert_as(torch.Tensor(grad_tex), grad_out)
+            grad_verts[:, :, 1] *= -1
+            return grad_verts, None, grad_tex
 ########################################################################
 ############## Wrapper torch module for Neural Renderer ################
 ########################################################################
