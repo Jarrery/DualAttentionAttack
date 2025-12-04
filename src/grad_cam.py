@@ -148,14 +148,14 @@ class GradCam():
 class CAM:
     
     def __init__(self):
-        model = models.resnet50(pretrained=True)
-        self.grad_cam = GradCam(model=model, conv_layer='layer4', use_cuda=True)
+        self.model = models.resnet50(pretrained=True)
+        self.grad_cam = GradCam(model=self.model, conv_layer='layer4', use_cuda=True)
         self.log_dir = "./"
         
     def __call__(self, img, index, log_dir, t_index=None):
         self.log_dir = log_dir
         self.t_index = t_index
-        img = img / 255
+        img = img / 255.0
         raw_img = img.data.cpu().numpy()[0].transpose((1, 2, 0))
         input = self.preprocess_image(img)
         target_index = [468,511,609,817,581,751,627]
@@ -172,7 +172,7 @@ class CAM:
         means = [0.485, 0.456, 0.406]
         stds = [0.229, 0.224, 0.225]
 
-        preprocessed_img = img
+        preprocessed_img = img.clone()
         for i in range(3):
             preprocessed_img[:, i, :, :] = preprocessed_img[:, i, :, :] - means[i]
             preprocessed_img[:, i, :, :] = preprocessed_img[:, i, :, :] / stds[i]

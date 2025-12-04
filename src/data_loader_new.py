@@ -11,7 +11,7 @@ warnings.filterwarnings("ignore")
 
 sys.path.append("../renderer/")
 
-import nmr_test as nmr
+import nmr_test_new as nmr
 import neural_renderer
 
 
