@@ -1,10 +1,8 @@
 import os
-import sys
 from PIL import Image
 import numpy as np
 import tqdm
 import torch
-import cv2
 import warnings
 from sklearn.metrics import average_precision_score
 import json  # 用于加载目标框标注
@@ -12,12 +10,10 @@ import json  # 用于加载目标框标注
 warnings.filterwarnings("ignore")
 
 import torch.nn.functional as F
-import nmr_test as nmr
 import neural_renderer
-from torchvision.transforms import Resize, ToPILImage
 from data_loader_new import MyDataset
 from torch.utils.data import DataLoader
-from torchvision import models, transforms
+from torchvision import models
 
 from argparse import ArgumentParser
 

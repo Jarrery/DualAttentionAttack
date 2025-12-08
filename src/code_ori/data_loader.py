@@ -105,7 +105,7 @@ class MyDataset(Dataset):
         return len(self.files)
 
 if __name__ == '__main__':
-    obj_file = 'audi_et_te.obj'
+    obj_file = '../audi_et_te.obj'
     vertices, faces, textures = neural_renderer.load_obj(filename_obj=obj_file, load_texture=True)
     dataset = MyDataset('../data/phy_attack/train/', 608, 4, faces, vertices)
     loader = DataLoader(

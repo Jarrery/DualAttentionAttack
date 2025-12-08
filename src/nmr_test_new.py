@@ -3,15 +3,15 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import scipy.misc
+import imageio
 import tqdm
 import math
 import os
 
 import chainer
 import torch
-
-import neural_renderer
+import neural_renderer #关键导入步骤！NameError: name 'neural_renderer' is not defined
+from neural_renderer.renderer import Renderer
 
 
 #############
@@ -70,7 +70,7 @@ def get_params(carlaTcam, carlaTveh):  # carlaTcam: tuple of 2*3
 class NMR(object):
     def __init__(self):
         # setup renderer
-        renderer = neural_renderer.Renderer()
+        renderer = Renderer()
         self.renderer = renderer
 
     def to_gpu(self, device=0):
@@ -140,26 +140,23 @@ class NMR(object):
 ########################################################################
 class Render(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, renderer, vertices, faces, textures=None):
-        # 将 renderer 保存到上下文，供 backward 使用
-        ctx.renderer = renderer
-
-        # B x N x 3
-        # 这里反转 Y 轴以对齐图像坐标系
+    def forward(ctx, vertices, faces, textures=None):
+        # 保存renderer到上下文
+        ctx.renderer = Render.renderer
+        # 翻转y轴以对齐图像坐标系
         vs = vertices.cpu().numpy()
         vs[:, :, 1] *= -1
         fs = faces.cpu().numpy()
-
         if textures is None:
             ctx.mask_only = True
             masks = ctx.renderer.forward_mask(vs, fs)
-            # 使用 convert_as 保持设备一致
-            return convert_as(torch.Tensor(masks), vertices)
+            result = convert_as(torch.Tensor(masks), vertices)
         else:
             ctx.mask_only = False
             ts = textures.cpu().numpy()
             imgs = ctx.renderer.forward_img(vs, fs, ts)
-            return convert_as(torch.Tensor(imgs), vertices)
+            result = convert_as(torch.Tensor(imgs), vertices)
+        return result
 
     @staticmethod
     def backward(ctx, grad_out):
@@ -172,14 +169,8 @@ class Render(torch.autograd.Function):
             grad_verts, grad_tex = ctx.renderer.backward_img(g_o)
             grad_verts = convert_as(torch.Tensor(grad_verts), grad_out)
             grad_tex = convert_as(torch.Tensor(grad_tex), grad_out)
-
         grad_verts[:, :, 1] *= -1
-
-        # 返回值的数量必须与 forward 的参数数量一致（ctx 除外）
-        # forward 参数: (ctx, renderer, vertices, faces, textures)
-        # 对应梯度: (None, grad_verts, None, grad_tex)
-        # renderer 和 faces 不需要梯度，所以返回 None
-        return None, grad_verts, None, grad_tex
+        return grad_verts, None, grad_tex
 
 
 ########################################################################
@@ -187,9 +178,9 @@ class Render(torch.autograd.Function):
 ########################################################################
 class NeuralRenderer(torch.nn.Module):
     """
-    这是核心的 PyTorch 调用类。
-    每个 PyTorch NMR 包含一个 Chainer NMR。
-    每次迭代只能进行一次 forward/backward。
+    This is the core pytorch function to call.
+    Every torch NMR has a chainer NMR.
+    Only fwd/bwd once per iteration.
     """
 
     def __init__(self, img_size=800):
@@ -220,7 +211,9 @@ class NeuralRenderer(torch.nn.Module):
         self.proj_fn = None
         self.offset_z = 5.
 
-        # 注意：这里删除了旧的 self.RenderFunc = Render(self.renderer)
+        # 初始化 Render 类的 renderer
+        Render.renderer = self.renderer
+        self.RenderFunc = Render.apply  # 使用 apply 方法
 
     def ambient_light_only(self):
         # Make light only ambient.
@@ -235,8 +228,10 @@ class NeuralRenderer(torch.nn.Module):
         return proj[:, :, :2]
 
     def forward(self, vertices, faces, textures=None):
-        # 使用 apply 调用静态方法，并传入 renderer
-        return Render.apply(self.renderer, vertices, faces, textures)
+        if textures is not None:
+            return self.RenderFunc(vertices, faces, textures)
+        else:
+            return self.RenderFunc(vertices, faces)
 
 
 def example():
@@ -278,8 +273,69 @@ def example():
 
     print(im_rendered.shape)
     print(np.max(im_rendered), np.max(img))
-    scipy.misc.imsave(img_save_dir + 'test_render.png', im_rendered)
-    scipy.misc.imsave(img_save_dir + 'test_origin.png', img)
+
+    im_rendered_uint8 = (im_rendered * 255).astype(np.uint8)  # 确保格式正确
+    imageio.imwrite(os.path.join(img_save_dir, 'test_render.png'), im_rendered_uint8)
+    imageio.imwrite(os.path.join(img_save_dir, 'test_origin.png'), img.astype(np.uint8))
+
+    # scipy.misc.imsave(img_save_dir + 'test_total.png', np.add(img, 255 * im_rendered))
+
+
+# def parse_npz():
+#     obj_file = 'audi_et.obj'
+#     data_path = '../data/phy_attack/train/'
+
+#     vertices, faces = neural_renderer.load_obj(obj_file)
+#     mask_renderer = NeuralRenderer()
+#     faces_var = torch.autograd.Variable(torch.from_numpy(faces[None, :, :]).cuda(device=0))
+#     vertices_var = torch.from_numpy(vertices[None, :, :]).cuda(device=0)
+#     # Textures
+#     texture_size = 2
+#     textures = np.ones((1, faces.shape[0], texture_size, texture_size, texture_size, 3), 'float32')
+#     textures = torch.from_numpy(textures).cuda(device=0)
+
+#     names = os.listdir(data_path)
+#     ind = 0
+#     for name in names:
+#         path = data_path + name
+#         data = np.load(path)
+#         img = data['img']
+#         veh_trans = data['veh_trans']
+#         cam_trans = data['cam_trans']
+#         cam_trans = cam_trans.astype(np.float64)
+#         print('before modify')
+#         print(veh_trans)
+#         print(cam_trans)
+#         # modify
+#         cam_trans[0][0] = cam_trans[0][0] + veh_trans[0][0]
+#         cam_trans[0][1] = cam_trans[0][1] + veh_trans[0][1]
+#         cam_trans[0][2] = cam_trans[0][2] + veh_trans[0][2]
+
+#         veh_trans[0][2] = veh_trans[0][2] + 0.2
+#         print('after modify')
+#         print(veh_trans)
+#         print(cam_trans)
+
+#         eye, camera_direction, camera_up = get_params(cam_trans, veh_trans)
+#         mask_renderer.renderer.renderer.eye = eye
+#         mask_renderer.renderer.renderer.camera_direction = camera_direction
+#         mask_renderer.renderer.renderer.camera_up = camera_up
+
+#         imgs_pred = mask_renderer.forward(vertices_var, faces_var, textures)
+#         im_rendered = imgs_pred.data.cpu().numpy()[0]
+#         im_rendered = np.transpose(im_rendered, (1,2,0))  # 800*800*3
+
+#         for i in range(0, 800):
+#             for j in range(0, 800):
+#                 if not (im_rendered[i][j][0] == 0 and im_rendered[i][j][1] == 0 and im_rendered[i][j][2] == 0):
+#                     img[i][j][0] = 0
+#                     img[i][j][1] = 0
+#                     img[i][j][2] = 0
+
+#         # save back
+#         np.savez(path, img=img, veh_trans=veh_trans, cam_trans=cam_trans)
+#         print('done for file', name)
+#         ind = ind + 1
 
 
 def run(data_path, file_name):
@@ -323,8 +379,23 @@ def run(data_path, file_name):
     # print(im_rendered.shape)
     # print(np.max(im_rendered), np.max(img))
     # scipy.misc.imsave(img_save_dir + 'test_render.png', im_rendered)
-    scipy.misc.imsave(img_save_dir + file_name + '.png', im_rendered)
+    im_rendered_uint8 = (im_rendered * 255).astype(np.uint8)  # 二值掩码转uint8
+    imageio.imwrite(os.path.join(img_save_dir, f"{file_name}.png"), im_rendered_uint8)
 
 
 if __name__ == '__main__':
     example()
+    '''
+    train_dir = '../data/phy_attack/test/'
+    files = os.listdir(train_dir)
+    for file in tqdm.tqdm(files):
+        # print(file[:-4])
+        run(os.path.join(train_dir, file), file[:-4])
+
+    train_dir = '../data/phy_attack/train/'
+    files = os.listdir(train_dir)
+    for file in tqdm.tqdm(files):
+        # print(file[:-4])
+        run(os.path.join(train_dir, file), file[:-4])
+    '''
+

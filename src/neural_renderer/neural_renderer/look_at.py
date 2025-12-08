@@ -4,43 +4,38 @@ import chainer.functions as cf
 import neural_renderer
 
 
+import torch
+import torch.nn.functional as F
+
 def look_at(vertices, eye, at=None, up=None):
-    """
-    "Look at" transformation of vertices.
-    """
-    assert (vertices.ndim == 3)
-
-    xp = chainer.cuda.get_array_module(vertices)
+    """视角变换：将顶点转换到相机坐标系"""
+    assert vertices.ndim == 3  # [batch_size, num_vertices, 3]
     batch_size = vertices.shape[0]
+    device = vertices.device
+
+    # 默认参数
     if at is None:
-        at = xp.array([0, 0, 0], 'float32')
+        at = torch.tensor([0, 0, 0], dtype=torch.float32, device=device)
     if up is None:
-        up = xp.array([0, 1, 0], 'float32')
+        up = torch.tensor([0, 1, 0], dtype=torch.float32, device=device)
 
-    if isinstance(eye, list) or isinstance(eye, tuple):
-        eye = xp.array(eye, 'float32')
+    # 扩展到批次维度
     if eye.ndim == 1:
-        eye = cf.tile(eye[None, :], (batch_size, 1))
+        eye = eye.unsqueeze(0).repeat(batch_size, 1)
     if at.ndim == 1:
-        at = cf.tile(at[None, :], (batch_size, 1))
+        at = at.unsqueeze(0).repeat(batch_size, 1)
     if up.ndim == 1:
-        up = cf.tile(up[None, :], (batch_size, 1))
+        up = up.unsqueeze(0).repeat(batch_size, 1)
 
-    # create new axes
-    z_axis = cf.normalize(at - eye)
-    x_axis = cf.normalize(neural_renderer.cross(up, z_axis))
-    y_axis = cf.normalize(neural_renderer.cross(z_axis, x_axis))
+    # 计算相机坐标系轴
+    z_axis = F.normalize(at - eye, dim=-1)  # 相机朝向
+    x_axis = F.normalize(torch.cross(up, z_axis, dim=-1), dim=-1)  # 右方向
+    y_axis = F.normalize(torch.cross(z_axis, x_axis, dim=-1), dim=-1)  # 上方向
 
-    # create rotation matrix: [bs, 3, 3]
-    r = cf.concat((x_axis[:, None, :], y_axis[:, None, :], z_axis[:, None, :]), axis=1)
-    if r.shape[0] != vertices.shape[0]:
-        r = cf.broadcast_to(r, (vertices.shape[0], 3, 3))
+    # 旋转矩阵 [batch_size, 3, 3]
+    r = torch.stack([x_axis, y_axis, z_axis], dim=1)  # 按列拼接
 
-    # apply
-    # [bs, nv, 3] -> [bs, nv, 3] -> [bs, nv, 3]
-    if vertices.shape != eye.shape:
-        eye = cf.broadcast_to(eye[:, None, :], vertices.shape)
-    vertices = vertices - eye
-    vertices = cf.matmul(vertices, r, transb=True)
-
+    # 应用旋转和平移
+    vertices = vertices - eye.unsqueeze(1)  # 平移到相机原点
+    vertices = torch.matmul(vertices, r.transpose(1, 2))  # 旋转（转置矩阵实现右乘）
     return vertices

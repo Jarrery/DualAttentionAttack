@@ -55,8 +55,5 @@ class Cross(chainer.Function):
         return ga, gb
 
 
-import torch
-
 def cross(a, b):
-    """PyTorch原生交叉积实现，支持批次操作"""
-    return torch.cross(a, b, dim=-1)
+    return Cross()(a, b)

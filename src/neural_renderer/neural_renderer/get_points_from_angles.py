@@ -1,7 +1,5 @@
 import math
-
-import chainer
-
+import torch
 
 def get_points_from_angles(distance, elevation, azimuth, degrees=True):
     if isinstance(distance, float) or isinstance(distance, int):
@@ -11,14 +9,15 @@ def get_points_from_angles(distance, elevation, azimuth, degrees=True):
         return (
             distance * math.cos(elevation) * math.sin(azimuth),
             distance * math.sin(elevation),
-            -distance * math.cos(elevation) * math.cos(azimuth))
+            -distance * math.cos(elevation) * math.cos(azimuth)
+        )
     else:
-        xp = chainer.cuda.get_array_module(distance)
+        # 假设distance是PyTorch张量
         if degrees:
-            elevation = xp.radians(elevation)
-            azimuth = xp.radians(azimuth)
-        return xp.stack([
-            distance * xp.cos(elevation) * xp.sin(azimuth),
-            distance * xp.sin(elevation),
-            -distance * xp.cos(elevation) * xp.cos(azimuth),
-        ]).transpose()
+            elevation = torch.radians(elevation)
+            azimuth = torch.radians(azimuth)
+        return torch.stack([
+            distance * torch.cos(elevation) * torch.sin(azimuth),
+            distance * torch.sin(elevation),
+            -distance * torch.cos(elevation) * torch.cos(azimuth),
+        ], dim=-1)

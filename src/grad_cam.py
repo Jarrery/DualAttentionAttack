@@ -157,6 +157,7 @@ class CAM:
         self.t_index = t_index
         img = img / 255.0
         raw_img = img.data.cpu().numpy()[0].transpose((1, 2, 0))
+        # 调整预处理后的图像尺寸
         input = self.preprocess_image(img)
         target_index = [468,511,609,817,581,751,627]
         if t_index==None:

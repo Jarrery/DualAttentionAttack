@@ -11,8 +11,8 @@ warnings.filterwarnings("ignore")
 
 sys.path.append("../renderer/")
 
-import nmr_test_new as nmr
-import neural_renderer
+from nmr_test_new import NeuralRenderer  # 显式导入类
+import nmr_test_new
 
 
 class MyDataset(Dataset):
@@ -51,7 +51,7 @@ class MyDataset(Dataset):
         self.textures = torch.from_numpy(textures).cuda(device=0)
         self.faces_var = torch.from_numpy(faces[None, :, :]).cuda(device=0)
         self.vertices_var = torch.from_numpy(vertices[None, :, :]).cuda(device=0)
-        self.mask_renderer = nmr.NeuralRenderer(img_size=self.img_size).cuda()
+        self.mask_renderer = NeuralRenderer(img_size=self.img_size).cuda() #解决AttributeError: module 'nmr_test_new' has no attribute 'Renderer'
         self.mask_dir = mask_dir
         self.ret_mask = ret_mask
         # 验证掩码目录是否存在
@@ -81,7 +81,7 @@ class MyDataset(Dataset):
             veh_trans[0][2] += 0.2
 
             # 获取渲染参数
-            eye, camera_direction, camera_up = nmr.get_params(cam_trans, veh_trans)
+            eye, camera_direction, camera_up = nmr_test_new.get_params(cam_trans, veh_trans)
             self.mask_renderer.renderer.renderer.eye = eye
             self.mask_renderer.renderer.renderer.camera_direction = camera_direction
             self.mask_renderer.renderer.renderer.camera_up = camera_up

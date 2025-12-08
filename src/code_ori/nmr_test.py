@@ -274,7 +274,7 @@ def example():
     vertices, faces = neural_renderer.load_obj(obj_file)
     
     texture_mask = np.zeros((faces.shape[0], 2, 2, 2, 3), 'int8')
-    with open('./all_faces.txt', 'r') as f:
+    with open('../all_faces.txt', 'r') as f:
         face_ids = f.readlines()
         for face_id in face_ids:
             texture_mask[int(face_id) - 1, :, :, :, :] = 1;
@@ -377,7 +377,7 @@ def run(data_path, file_name):
     vertices, faces = neural_renderer.load_obj(obj_file)
     
     texture_mask = np.zeros((faces.shape[0], 2, 2, 2, 3), 'int8')
-    with open('./all_faces.txt', 'r') as f:
+    with open('../all_faces.txt', 'r') as f:
         face_ids = f.readlines()
         for face_id in face_ids:
             texture_mask[int(face_id) - 1, :, :, :, :] = 1;

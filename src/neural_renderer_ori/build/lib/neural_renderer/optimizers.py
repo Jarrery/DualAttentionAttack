@@ -4,7 +4,7 @@ Custom optimizers.
 - use parameter-wise learning rate specified by param.lr.
 """
 import chainer
-import torch.optim as optim
+
 
 class AdamRule(chainer.optimizers.adam.AdamRule):
     def update_core_cpu(self, param):
@@ -35,10 +35,5 @@ class AdamRule(chainer.optimizers.adam.AdamRule):
 
 
 class Adam(chainer.optimizers.adam.Adam):
-    def create_optimizer(mesh, lr_vertices, lr_textures):
-        """创建优化器，为顶点和纹理设置不同学习率"""
-        optimizer = optim.Adam([
-            {'params': mesh.vertices, 'lr': lr_vertices},
-            {'params': mesh.textures, 'lr': lr_textures},
-        ])
-        return optimizer
+    def create_update_rule(self):
+        return AdamRule(self.hyperparam)

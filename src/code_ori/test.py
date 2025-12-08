@@ -39,7 +39,7 @@ texture_size = 6
 vertices, faces, textures = neural_renderer.load_obj(filename_obj=obj_file, texture_size=texture_size, load_texture=True)
 
 
-log_dir = './'
+log_dir = '../'
 
 img_size = 608
 torch.autograd.set_detect_anomaly(True)
@@ -52,7 +52,7 @@ texture_param = torch.autograd.Variable(torch.from_numpy(texture_param).cuda(dev
 texture_origin = torch.from_numpy(textures[None, :, :, :, :, :]).cuda(device=0)
 
 texture_mask = np.zeros((faces.shape[0], texture_size, texture_size, texture_size, 3), 'int8')
-with open('all_faces.txt', 'r') as f:
+with open('../all_faces.txt', 'r') as f:
     face_ids = f.readlines()
     # print(face_ids)
     for face_id in face_ids:
